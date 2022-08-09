@@ -1,0 +1,5 @@
+servers:
+  - command: semgrep
+    args:
+      - lsp
+    port: 8000

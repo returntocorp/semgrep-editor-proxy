@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "semgrep-editor-proxy"
+version = "0.1.0"
+description = ""
+authors = ["ajbt200128 <austin@r2c.dev>"]
+
+[tool.poetry.scripts]
+start = "semgrep_editor_proxy:main"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+websockets = "^10.3"
+asyncio = "^3.4.3"
+PyYAML = "^6.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.1.2"
+pytest-asyncio = "^0.19.0"
+types-PyYAML = "^6.0.11"
+mypy = "^0.971"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
