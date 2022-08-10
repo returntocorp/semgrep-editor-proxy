@@ -5,7 +5,6 @@ import pytest_asyncio
 from websockets.client import connect
 from websockets.server import serve
 
-from semgrep_editor_proxy.constants import MESSAGE_TEMPLATE
 from semgrep_editor_proxy.proxy import proxy
 
 CONFIG = {"command": "semgrep", "args": ["lsp"], "port": 8000}
@@ -56,15 +55,13 @@ def lsp_initialize_message(tmp_path):
         },
     }
     message = json.dumps(message)
-    length = len(message.encode("utf-8"))
-    return MESSAGE_TEMPLATE % (length, message)
+    return message
 
 
 def lsp_initialized_message():
     message = {"jsonrpc": "2.0", "id": 1, "method": "initialized", "params": {}}
     message = json.dumps(message)
-    length = len(message.encode("utf-8"))
-    return MESSAGE_TEMPLATE % (length, message)
+    return message
 
 
 def lsp_open_message(tmp_path):
@@ -82,8 +79,7 @@ def lsp_open_message(tmp_path):
         },
     }
     message = json.dumps(message)
-    length = len(message.encode("utf-8"))
-    return MESSAGE_TEMPLATE % (length, message)
+    return message
 
 
 def lsp_did_change_message(tmp_path):
@@ -108,8 +104,7 @@ def lsp_did_change_message(tmp_path):
         },
     }
     message = json.dumps(message)
-    length = len(message.encode("utf-8"))
-    return MESSAGE_TEMPLATE % (length, message)
+    return message
 
 
 def lsp_did_change_full(tmp_path):
@@ -126,5 +121,4 @@ def lsp_did_change_full(tmp_path):
         },
     }
     message = json.dumps(message)
-    length = len(message.encode("utf-8"))
-    return MESSAGE_TEMPLATE % (length, message)
+    return message

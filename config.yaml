@@ -1,5 +1,5 @@
 servers:
-  - command: semgrep
+  - command: pyright-langserver
     args:
-      - lsp
+      - --stdio
     port: 8000

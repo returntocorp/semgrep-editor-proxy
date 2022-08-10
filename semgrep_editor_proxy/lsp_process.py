@@ -13,9 +13,16 @@ class LSPProcess:
         self.args = args
         self._write_lock = asyncio.Lock()
         self.process: Optional[Process] = None
+        self.uri_map: dict[str, str] = {}
 
     async def start(self) -> None:
         self.process = await start_process(self.command, self.args)
+
+    async def stop(self) -> None:
+        if self.process is None:
+            raise ValueError("process has not been started")
+        self.process.terminate()
+        await self.process.wait()
 
     async def read_stdout(self) -> str:
         if self.process is None:
@@ -37,6 +44,7 @@ class LSPProcess:
         if not self.process.stdin:
             raise ValueError("stdin is None")
         await self._write_lock.acquire()
+        # Ensure we get the byte length, not the character length
         body = data
         # Ensure we get the byte length, not the character length
         content_length = (
