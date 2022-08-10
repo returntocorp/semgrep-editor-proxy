@@ -4,6 +4,7 @@ WHITELISTED_LSP_METHODS = [
     "textDocument/didOpen",
     "textDocument/didChange",
     "textDocument/didClose",
+    None,
 ]
 
 SUPPORTED_LANGUAGES = ["python"]

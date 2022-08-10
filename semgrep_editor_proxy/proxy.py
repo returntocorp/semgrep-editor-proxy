@@ -1,4 +1,5 @@
 import asyncio
+import io
 import json
 import sys
 from functools import partial
@@ -14,10 +15,7 @@ from websockets.server import serve
 from websockets.server import WebSocketServerProtocol
 from websockets.typing import Data
 
-from semgrep_editor_proxy.constants import MESSAGE_TEMPLATE
-from semgrep_editor_proxy.constants import WHITELISTED_LSP_METHODS
 from semgrep_editor_proxy.lsp_process import LSPProcess
-from semgrep_editor_proxy.util import get_content
 
 ClientConnection = tuple[int, LSPProcess]
 Config = dict[str, Any]
@@ -31,23 +29,26 @@ def validate_request(
         request_data = request.decode("utf-8")
     else:
         request_data = request
-    data = get_content(request_data)
+    data: dict[str, Any] = json.loads(request_data)
     assert data["jsonrpc"] == "2.0"
-    assert data["id"] is not None
-    assert data["method"] is not None
-    assert data["method"] in WHITELISTED_LSP_METHODS
-    if "textDocument" in data["params"]:
+    # We should add this back once we figure out what methods to support
+    # assert data.get("method", None) in WHITELISTED_LSP_METHODS
+    if "textDocument" in data.get("params", {}):
         assert data["params"]["textDocument"]["uri"] is not None
-        path = parse.urlparse(data["params"]["textDocument"]["uri"]).path
-        # Rewrite uri
-        data["params"]["textDocument"][
-            "uri"
-        ] = f"file:///tmp/semgrep_editor_proxy/{client_connection[0]}/{Path(path).name}"
+        path = parse.urlparse(data["params"]["textDocument"]["uri"])
+        # URIs are dumb!
+        path = path.netloc + "/" + path.path
+        # Rewrite uri so it's local to the server
+        uri = (
+            f"file:///tmp/semgrep_editor_proxy/{client_connection[0]}/{Path(path).name}"
+        )
+        client_connection[1].uri_map[uri] = data["params"]["textDocument"]["uri"]
+        data["params"]["textDocument"]["uri"] = uri
     return data
 
 
 def sync_document(document: dict[str, Any]) -> None:
-    if "textDocument" not in document["params"]:
+    if "textDocument" not in document.get("params", {}):
         return
     if "uri" not in document["params"]["textDocument"]:
         return
@@ -82,16 +83,20 @@ def sync_document(document: dict[str, Any]) -> None:
                     end_line = change["range"]["end"]["line"]
                     end_col = change["range"]["end"]["character"]
 
-                    # Truncate lines at the start and end of the range
-                    buff[start_line] = buff[start_line][:start_col]
-                    buff[end_line] = buff[end_line][end_col:]
-
-                    # Remove lines in the middle of the range
-                    buff_first_half = "".join(buff[: start_line + 1])
-                    buff_second_half = "".join(buff[end_line:])
-
-                    # Insert the new lines
-                    to_write = buff_first_half + change["text"] + buff_second_half
+                    new = io.StringIO()
+                    for i, line in enumerate(buff):
+                        if i < start_line:
+                            new.write(line)
+                            continue
+                        if i > end_line:
+                            new.write(line)
+                            continue
+                        if i == start_line:
+                            new.write(line[:start_col])
+                            new.write(change["text"])
+                        if i == end_line:
+                            new.write(line[end_col:])
+                    to_write = new.getvalue()
                 f.seek(0)
                 f.truncate()
                 f.write(to_write)
@@ -99,6 +104,9 @@ def sync_document(document: dict[str, Any]) -> None:
 
 
 async def process_request(data: Data, client_connection: ClientConnection) -> None:
+    if isinstance(data, bytes):
+        data = data.decode("utf-8")
+    print(f"Request: {data}")
     request = validate_request(data, client_connection)
     sync_document(request)
     await client_connection[1].write_stdin(json.dumps(request))
@@ -106,14 +114,21 @@ async def process_request(data: Data, client_connection: ClientConnection) -> No
 
 async def process_response(client_connection: ClientConnection) -> Data:
     response = await client_connection[1].read_stdout()
-
-    response = MESSAGE_TEMPLATE % (len(response.encode("utf-8")), response)
+    data = json.loads(response)
+    # This could be in its own function
+    # This could be prettier + more robust (there might be other places we need to rewrite)
+    if "uri" in data.get("params", {}):
+        # We should probably do some sort of cleanup so we're not returning URIs not in the map
+        data["params"]["uri"] = client_connection[1].uri_map.get(
+            data["params"]["uri"], data["params"]["uri"]
+        )
+    # At some point we should also rewrite server capabilities if they're returned to only what we actually support
+    response = json.dumps(data)
+    print(f"Response: {response}")
     return response
 
 
 # Seperate out websocket logic for easier testing
-
-
 async def request_handler(
     websocket: WebSocketServerProtocol, client_connection: ClientConnection
 ) -> None:
@@ -148,7 +163,9 @@ async def proxy(websocket: WebSocketServerProtocol, config: Config) -> None:
         print(f"Connection {connection_id} closed")
     finally:
         path = Path(f"/tmp/semgrep_editor_proxy/{connection_id}")
-        rmtree(path)
+        if path.exists():
+            rmtree(path)
+        await process.stop()
 
 
 async def run() -> None:
