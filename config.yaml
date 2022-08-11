@@ -1,5 +1,21 @@
 servers:
-  - command: pyright-langserver
+  - command: yaml-language-server
     args:
       - --stdio
     port: 8000
+  - command: pyright-langserver
+    args:
+      - --stdio
+    port: 8001
+  - command: solargraph
+    args:
+      - stdio
+    port: 8002
+  - command: typescript-language-server
+    args:
+      - --stdio
+    port: 8003
+  - command: phpactor
+    args:
+      - language-server
+    port: 8004
