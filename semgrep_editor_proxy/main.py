@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import asyncio
 
 from semgrep_editor_proxy.proxy import run
