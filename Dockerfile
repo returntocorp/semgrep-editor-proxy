@@ -13,7 +13,10 @@ RUN git clone https://github.com/phpactor/phpactor.git && \
 RUN ln -s /phpactor/bin/phpactor /usr/local/bin/phpactor
 
 COPY ./dist/semgrep_editor_proxy-0.1.0-py3-none-any.whl /
+COPY ./config.yaml /
 RUN pip install semgrep semgrep_editor_proxy-0.1.0-py3-none-any.whl
 RUN chmod +x /usr/local/lib/python3.10/site-packages/semgrep_editor_proxy/main.py
 RUN ln -s /usr/local/lib/python3.10/site-packages/semgrep_editor_proxy/main.py /usr/local/bin/semgrep-editor-proxy
+EXPOSE 8000-8004
+CMD ["semgrep-editor-proxy", "a", "config.yaml"]
 
